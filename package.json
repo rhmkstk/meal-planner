@@ -15,6 +15,7 @@
   "dependencies": {
     "@nuxt/ui": "2.19.2",
     "@nuxtjs/tailwindcss": "6.12.2",
+    "@supabase/supabase-js": "^2.108.2",
     "nuxt": "3.15.4",
     "tailwindcss": "3.4.14",
     "vue": "3.5.35"
@@ -26,6 +27,5 @@
     "nitropack": "2.10.4",
     "tailwindcss": "3.4.14",
     "unstorage": "1.14.4"
-  },
-  "devDependencies": {}
+  }
 }
