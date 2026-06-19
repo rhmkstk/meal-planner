@@ -1,0 +1,31 @@
+{
+  "name": "weakly-meal-planner",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20.11.1"
+  },
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@nuxt/ui": "2.19.2",
+    "@nuxtjs/tailwindcss": "6.12.2",
+    "nuxt": "3.15.4",
+    "tailwindcss": "3.4.14",
+    "vue": "3.5.35"
+  },
+  "overrides": {
+    "@nuxt/cli": "3.21.1",
+    "@nuxt/kit": "3.15.4",
+    "@nuxtjs/tailwindcss": "6.12.2",
+    "nitropack": "2.10.4",
+    "tailwindcss": "3.4.14",
+    "unstorage": "1.14.4"
+  },
+  "devDependencies": {}
+}
