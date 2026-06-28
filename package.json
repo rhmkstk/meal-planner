@@ -3,11 +3,12 @@
   "type": "module",
   "private": true,
   "engines": {
-    "node": ">=20.11.1"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
+    "deploy": "wrangler deploy",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "test:db": "node scripts/db-smoke-test.mjs",
@@ -28,5 +29,8 @@
     "nitropack": "2.10.4",
     "tailwindcss": "3.4.14",
     "unstorage": "1.14.4"
+  },
+  "devDependencies": {
+    "wrangler": "^4.105.0"
   }
 }

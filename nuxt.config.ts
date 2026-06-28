@@ -31,6 +31,7 @@ export default defineNuxtConfig({
     }
   },
   nitro: {
+    preset: 'cloudflare-module',
     serveStatic: 'inline'
   },
   compatibilityDate: '2026-06-06',
