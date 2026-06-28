@@ -1,8 +1,38 @@
 <script setup lang="ts">
 const route = useRoute()
+const { user, signOut } = useSupabaseAuth()
+const isSigningOut = ref(false)
 
 const isPlansActive = computed(() => route.path === '/' || route.path.startsWith('/plans'))
 const isFoodsActive = computed(() => route.path.startsWith('/foods'))
+const isAuthPage = computed(() => route.path === '/login' || route.path === '/register')
+const userInitial = computed(() => {
+  const displayValue = user.value?.email ?? user.value?.user_metadata?.name ?? ''
+  return displayValue.trim().charAt(0).toLocaleUpperCase('tr-TR') || '?'
+})
+const userMenuItems = computed(() => [
+  [
+    {
+      label: 'Cikis yap',
+      icon: 'i-heroicons-arrow-left-on-rectangle-20-solid',
+      click: handleSignOut
+    }
+  ]
+])
+
+async function handleSignOut(): Promise<void> {
+  if (isSigningOut.value) {
+    return
+  }
+
+  isSigningOut.value = true
+
+  try {
+    await signOut()
+  } finally {
+    isSigningOut.value = false
+  }
+}
 </script>
 
 <template>
@@ -24,7 +54,10 @@ const isFoodsActive = computed(() => route.path.startsWith('/foods'))
           </span>
         </NuxtLink>
 
-        <nav class="hidden items-center gap-1 sm:flex sm:gap-2">
+        <nav
+          v-if="!isAuthPage"
+          class="hidden items-center gap-1 sm:flex sm:gap-2"
+        >
           <NuxtLink
             to="/"
             :class="[
@@ -48,12 +81,34 @@ const isFoodsActive = computed(() => route.path.startsWith('/foods'))
             Yemekler
           </NuxtLink>
         </nav>
+
+        <div
+          v-if="user && !isAuthPage"
+          class="flex items-center"
+        >
+          <UDropdown
+            :items="userMenuItems"
+            :popper="{ placement: 'bottom-end' }"
+          >
+            <button
+              type="button"
+              class="flex h-10 w-10 text-2xl items-center justify-center rounded-full bg-pine_teal-500 font-bold text-white shadow-sm ring-1 ring-pine_teal-700 transition hover:bg-pine_teal-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-mint_leaf-500 dark:bg-mint_leaf-500 dark:text-carbon_black-100 dark:ring-mint_leaf-300"
+              :aria-label="`${user.email ?? 'Kullanici'} menu`"
+              :disabled="isSigningOut"
+            >
+              {{ userInitial }}
+            </button>
+          </UDropdown>
+        </div>
       </div>
     </header>
 
     <NuxtPage />
 
-    <nav class="fixed inset-x-0 bottom-0 z-50 border-t border-meal-line bg-meal-paper/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_28px_-24px_rgb(34_34_34_/_0.45)] backdrop-blur sm:hidden dark:border-carbon_black-300 dark:bg-carbon_black-400/95">
+    <nav
+      v-if="!isAuthPage"
+      class="fixed inset-x-0 bottom-0 z-50 border-t border-meal-line bg-meal-paper/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_28px_-24px_rgb(34_34_34_/_0.45)] backdrop-blur sm:hidden dark:border-carbon_black-300 dark:bg-carbon_black-400/95"
+    >
       <div class="grid w-full grid-cols-3 items-stretch">
         <NuxtLink
           to="/"
@@ -73,7 +128,7 @@ const isFoodsActive = computed(() => route.path.startsWith('/foods'))
         </NuxtLink>
 
         <UButton
-          to="/?createPlan=1"
+          to="/plans/new"
           color="primary"
           size="sm"
           square

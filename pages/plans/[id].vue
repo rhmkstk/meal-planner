@@ -5,7 +5,6 @@ import {
   WEEK_DAY_LABELS,
   calculatePlannedIngredientAmount
 } from '~/types/meal-planner'
-import { mockMealPlannerData } from '~/data/mock-meal-planner'
 import type {
   IngredientCategory,
   IngredientUnit,
@@ -23,14 +22,37 @@ type ShoppingListUiItem = {
   checked: boolean
 }
 
+type PlanMealListItem = {
+  dayDate: string
+  dayLabel: string
+  meal: PlannedMeal
+}
+
 const route = useRoute()
-const mealPlannerData = reactive(mockMealPlannerData)
+const {
+  mealPlannerData: mealPlannerState,
+  refreshMealPlannerData
+} = useMealPlanner()
+const mealPlannerData = reactive(mealPlannerState.value)
 const activeTab = ref<'plan' | 'shopping'>('plan')
+const planViewMode = ref<'days' | 'list'>('days')
 const shoppingCheckedState = reactive<Record<string, boolean>>({})
 const shoppingSortCheckedState = reactive<Record<string, boolean>>({})
 const recentlyUpdatedShoppingItemId = ref<string | null>(null)
 let shoppingFeedbackTimer: ReturnType<typeof setTimeout> | null = null
 const shoppingMoveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+watch(
+  mealPlannerState,
+  (data) => {
+    Object.assign(mealPlannerData, data)
+  },
+  { deep: true, immediate: true }
+)
+
+onMounted(() => {
+  refreshMealPlannerData()
+})
 
 const recipesById = computed<Record<string, Recipe>>(() => {
   return mealPlannerData.recipes.reduce<Record<string, Recipe>>((recipes, recipe) => {
@@ -118,6 +140,20 @@ const shoppingItems = computed<ShoppingListUiItem[]>(() => {
       checked: shoppingCheckedState[item.id] ?? item.checked
     }))
     .sort(sortShoppingItems)
+})
+
+const planMealList = computed<PlanMealListItem[]>(() => {
+  if (!plan.value) {
+    return []
+  }
+
+  return plan.value.days.flatMap((day) => {
+    return day.meals.map((meal) => ({
+      dayDate: day.date,
+      dayLabel: WEEK_DAY_LABELS[day.day],
+      meal
+    }))
+  })
 })
 
 function getRecipeName(recipeId: string): string {
@@ -271,7 +307,39 @@ function sortShoppingItems(first: ShoppingListUiItem, second: ShoppingListUiItem
           v-if="activeTab === 'plan'"
           class="grid gap-5"
         >
-          <div class="grid gap-4 xl:grid-cols-2">
+          <div class="surface-panel p-3">
+            <div class="grid grid-cols-2 gap-2">
+              <UButton
+                type="button"
+                block
+                :color="planViewMode === 'days' ? 'primary' : 'gray'"
+                :variant="planViewMode === 'days' ? 'solid' : 'ghost'"
+                :class="[
+                  planViewMode === 'days' ? '' : 'bg-transparent'
+                ]"
+                @click="planViewMode = 'days'"
+              >
+                Günler
+              </UButton>
+              <UButton
+                type="button"
+                block
+                :color="planViewMode === 'list' ? 'primary' : 'gray'"
+                :variant="planViewMode === 'list' ? 'solid' : 'ghost'"
+                :class="[
+                  planViewMode === 'list' ? '' : 'bg-transparent'
+                ]"
+                @click="planViewMode = 'list'"
+              >
+                Liste
+              </UButton>
+            </div>
+          </div>
+
+          <div
+            v-if="planViewMode === 'days'"
+            class="grid gap-4 xl:grid-cols-2"
+          >
             <article
               v-for="day in plan.days"
               :key="day.date"
@@ -348,6 +416,70 @@ function sortShoppingItems(first: ShoppingListUiItem, second: ShoppingListUiItem
               </p>
             </article>
           </div>
+
+          <div
+            v-else-if="planMealList.length > 0"
+            class="grid gap-3 md:grid-cols-2"
+          >
+            <article
+              v-for="item in planMealList"
+              :key="item.meal.id"
+              class="rounded-lg border border-mint_leaf-800 bg-mint_leaf-900 p-4 dark:border-mint_leaf-300 dark:bg-mint_leaf-100/60"
+            >
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap gap-2">
+                    <UBadge
+                      color="gray"
+                      variant="soft"
+                    >
+                      {{ item.dayLabel }} - {{ formatShortDate(item.dayDate) }}
+                    </UBadge>
+                    <UBadge
+                      color="primary"
+                      variant="subtle"
+                    >
+                      {{ MEAL_TYPE_LABELS[item.meal.mealType] }}
+                    </UBadge>
+                  </div>
+                  <h3 class="mt-3 text-lg font-semibold text-meal-ink dark:text-white">
+                    {{ getRecipeName(item.meal.recipeId) }}
+                  </h3>
+                  <p
+                    v-if="item.meal.note"
+                    class="mt-2 text-sm text-meal-muted dark:text-alabaster_grey-800"
+                  >
+                    {{ item.meal.note }}
+                  </p>
+                </div>
+                <span class="shrink-0 rounded-md bg-white px-3 py-1 text-sm font-semibold text-pine_teal-600 dark:bg-carbon_black-200 dark:text-mint_leaf-700">
+                  {{ item.meal.servings }} porsiyon
+                </span>
+              </div>
+
+              <div
+                v-if="getRecipeTags(item.meal).length > 0"
+                class="mt-3 flex flex-wrap gap-2"
+              >
+                <UBadge
+                  v-for="tag in getRecipeTags(item.meal)"
+                  :key="tag"
+                  color="gray"
+                  variant="soft"
+                  size="xs"
+                >
+                  {{ tag }}
+                </UBadge>
+              </div>
+            </article>
+          </div>
+
+          <p
+            v-else
+            class="rounded-md border border-dashed border-meal-line px-3 py-4 text-sm text-meal-muted dark:border-carbon_black-300 dark:text-alabaster_grey-700"
+          >
+            Bu planda henüz yemek yok.
+          </p>
         </section>
 
         <section

@@ -7,7 +7,6 @@ import {
   RECIPE_DIFFICULTY_LABELS,
   SEASON_LABELS
 } from '~/types/meal-planner'
-import { mockMealPlannerData } from '~/data/mock-meal-planner'
 import type {
   EstimatedCost,
   IngredientCategory,
@@ -44,13 +43,22 @@ type RecipeForm = {
   isFavorite: boolean
 }
 
-const mealPlannerData = reactive(mockMealPlannerData)
+const {
+  mealPlannerData: mealPlannerState,
+  refreshMealPlannerData,
+  saveRecipe,
+  deleteRecipe: deleteRecipeFromDb
+} = useMealPlanner()
+const { user } = useSupabaseAuth()
+const mealPlannerData = reactive(mealPlannerState.value)
 const searchQuery = ref('')
 const selectedMealType = ref<MealType | 'all'>('all')
 const selectedTag = ref('all')
 const isRecipeModalOpen = ref(false)
 const isRecipeDetailModalOpen = ref(false)
 const selectedRecipeId = ref<string | null>(null)
+const isRecipeSubmitting = ref(false)
+const recipeSubmitError = ref('')
 
 const mealTypeOptions = Object.entries(MEAL_TYPE_LABELS).map(([value, label]) => ({
   value: value as MealType,
@@ -83,6 +91,18 @@ const seasonOptions = Object.entries(SEASON_LABELS).map(([value, label]) => ({
 }))
 
 const recipeForm = reactive<RecipeForm>(createRecipeForm())
+
+watch(
+  mealPlannerState,
+  (data) => {
+    Object.assign(mealPlannerData, data)
+  },
+  { deep: true, immediate: true }
+)
+
+onMounted(() => {
+  refreshMealPlannerData()
+})
 
 const allTags = computed(() => {
   const tags = mealPlannerData.recipes.flatMap((recipe) => recipe.tags ?? [])
@@ -160,12 +180,22 @@ function createIngredientForm(): RecipeIngredientForm {
   }
 }
 
-function openNewRecipeModal(): void {
-  Object.assign(recipeForm, createRecipeForm())
-  isRecipeModalOpen.value = true
+function openNewRecipePage(): void {
+  if (!user.value) {
+    navigateTo({
+      path: '/login',
+      query: {
+        redirect: '/foods/new'
+      }
+    })
+    return
+  }
+
+  navigateTo('/foods/new')
 }
 
 function openEditRecipeModal(recipe: Recipe): void {
+  recipeSubmitError.value = ''
   Object.assign(recipeForm, createRecipeForm(recipe))
   isRecipeDetailModalOpen.value = false
   isRecipeModalOpen.value = true
@@ -198,28 +228,26 @@ function removeIngredient(index: number): void {
   recipeForm.ingredients.splice(index, 1)
 }
 
-function submitRecipe(): void {
+async function submitRecipe(): Promise<void> {
+  recipeSubmitError.value = ''
+
   if (!canSubmitRecipe.value) {
     return
   }
 
-  const now = new Date().toISOString()
-  const recipe = buildRecipeFromForm(now)
-  const existingIndex = mealPlannerData.recipes.findIndex((item) => item.id === recipe.id)
+  isRecipeSubmitting.value = true
 
-  if (existingIndex >= 0) {
-    mealPlannerData.recipes.splice(existingIndex, 1, {
-      ...mealPlannerData.recipes[existingIndex],
-      ...recipe,
-      createdAt: mealPlannerData.recipes[existingIndex].createdAt,
-      usageCount: mealPlannerData.recipes[existingIndex].usageCount,
-      lastUsedAt: mealPlannerData.recipes[existingIndex].lastUsedAt
-    })
-  } else {
-    mealPlannerData.recipes.push(recipe)
+  try {
+    const now = new Date().toISOString()
+    const recipe = buildRecipeFromForm(now)
+    await saveRecipe(recipe)
+
+    isRecipeModalOpen.value = false
+  } catch (error) {
+    recipeSubmitError.value = error instanceof Error ? error.message : 'Yemek kaydedilemedi.'
+  } finally {
+    isRecipeSubmitting.value = false
   }
-
-  isRecipeModalOpen.value = false
 }
 
 function buildRecipeFromForm(now: string): Recipe {
@@ -257,29 +285,13 @@ function buildRecipeFromForm(now: string): Recipe {
   }
 }
 
-function deleteRecipe(recipeId: string): void {
-  const index = mealPlannerData.recipes.findIndex((recipe) => recipe.id === recipeId)
-
-  if (index < 0) {
+async function deleteRecipe(recipeId: string): Promise<void> {
+  try {
+    await deleteRecipeFromDb(recipeId)
+  } catch (error) {
+    recipeSubmitError.value = error instanceof Error ? error.message : 'Yemek silinemedi.'
     return
   }
-
-  mealPlannerData.recipes.splice(index, 1)
-
-  mealPlannerData.weeklyPlans.forEach((plan) => {
-    plan.days.forEach((day) => {
-      day.meals = day.meals.filter((meal) => meal.recipeId !== recipeId)
-    })
-  })
-
-  mealPlannerData.shoppingLists.forEach((list) => {
-    list.items = list.items
-      .map((item) => ({
-        ...item,
-        recipes: item.recipes.filter((recipe) => recipe.recipeId !== recipeId)
-      }))
-      .filter((item) => item.recipes.length > 0)
-  })
 
   if (selectedRecipeId.value === recipeId) {
     selectedRecipeId.value = null
@@ -321,7 +333,7 @@ function formatIngredientAmount(amount: number): string {
           <UButton
             block
             color="primary"
-            @click="openNewRecipeModal"
+            @click="openNewRecipePage"
           >
             Yeni Yemek Ekle
           </UButton>
@@ -489,10 +501,10 @@ function formatIngredientAmount(amount: number): string {
             <div class="flex min-w-0 items-start justify-between gap-4">
               <div class="min-w-0">
                 <p class="section-title">
-                  {{ recipeForm.id ? 'Yemek düzenle' : 'Yeni yemek' }}
+                  Yemek düzenle
                 </p>
                 <h2 class="mt-1 truncate text-2xl font-semibold text-meal-ink dark:text-white">
-                  {{ recipeForm.id ? recipeForm.name : 'Yemek ekle' }}
+                  {{ recipeForm.name }}
                 </h2>
               </div>
               <UButton
@@ -511,9 +523,10 @@ function formatIngredientAmount(amount: number): string {
                 block
                 type="submit"
                 color="primary"
-                :disabled="!canSubmitRecipe"
+                :disabled="!canSubmitRecipe || isRecipeSubmitting"
+                :loading="isRecipeSubmitting"
               >
-                {{ recipeForm.id ? 'Değişiklikleri Kaydet' : 'Yemeği Kaydet' }}
+                Değişiklikleri Kaydet
               </UButton>
             </div>
           </div>
@@ -522,6 +535,14 @@ function formatIngredientAmount(amount: number): string {
         <div class="flex-1 overflow-y-auto">
           <div class="mx-auto grid w-full max-w-7xl gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[1.2fr_0.8fr] lg:px-8">
             <section class="space-y-5">
+              <UAlert
+                v-if="recipeSubmitError"
+                color="red"
+                variant="soft"
+                title="Yemek kaydedilemedi"
+                :description="recipeSubmitError"
+              />
+
               <div class="surface-panel p-5">
                 <p class="section-title">
                   Temel bilgiler
