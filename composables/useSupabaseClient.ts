@@ -8,7 +8,7 @@ export function useSupabaseClient() {
   const supabaseKey = String(config.public.supabaseKey || '')
 
   if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Supabase runtime config is missing. Check SUPABASE_URL and SUPABASE_KEY.')
+    throw new Error('Supabase runtime config is missing. Check NUXT_PUBLIC_SUPABASE_URL and NUXT_PUBLIC_SUPABASE_KEY.')
   }
 
   if (!supabaseClient) {
