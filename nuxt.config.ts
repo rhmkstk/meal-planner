@@ -30,10 +30,6 @@ export default defineNuxtConfig({
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY ?? process.env.SUPABASE_KEY ?? process.env.SUPABASE_PUBLISHABLE_KEY ?? ''
     }
   },
-  nitro: {
-    preset: 'cloudflare-module',
-    serveStatic: 'inline'
-  },
   compatibilityDate: '2026-06-06',
   devtools: { enabled: true },
   image: {

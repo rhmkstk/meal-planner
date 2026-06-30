@@ -4,7 +4,7 @@ Nuxt project configured with Tailwind CSS and Nuxt UI.
 
 ## Requirements
 
-- Node.js 22.0.0 or newer
+- Node.js 22.12.0 or newer
 
 ## Setup
 
