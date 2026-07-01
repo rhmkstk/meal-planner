@@ -47,7 +47,7 @@ async function submitRegister(): Promise<void> {
               Kayit ol
             </h1>
             <p class="mt-2 text-sm text-meal-muted dark:text-alabaster_grey-700">
-              Kendi yemeklerini ve haftalik planlarini kaydetmeye basla.
+              Kendi yemeklerini ve haftalik planlarini kaydetmeye başla.
             </p>
           </div>
         </template>
